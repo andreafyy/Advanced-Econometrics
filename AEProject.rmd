@@ -1,5 +1,6 @@
 ---
 title: "Who survived the Titanic disaster?  Exploring data with Multinomial Logistic Regression"
+author: 'Prepared by: Divij Pherwani (430990) Andrea Furmanek (345183)'
 output:
   word_document: default
   html_document:
