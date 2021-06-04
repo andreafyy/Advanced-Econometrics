@@ -1,16 +1,17 @@
 ---
-title: "R Notebook"
+title: "Who survived the Titanic disaster?  Exploring data with Multinomial Logistic Regression"
 output:
+  word_document: default
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 # Abstract
 
-Below paper was prepared for the needs of the final project for Advanced Econometrics at the University of Warsaw. By using ``Multinomial Logit Model`` on the data of Titanic survivors
-we wanted to verify whether the socio-economic status or paying higher fare impacted passenger's probability of survival. The data is originally available on the ``Kaggle`` competition website "Titanic: Machine Learning from Disaster" and contains  data for 1.309 passengers indicating whether they survive, what was their material status, what gender they were, what age they were etc. As our explanatory variables are individual specific (they do not change across alternatives) we decided to use ``Multinomial Logit Model``. In this paper, dependent variable ``Survival`` was explained with different independent variables that were selected using multinomial logit model and verified by statistical tests. The econometric model was built in ``R`` with the use of ``??? packages``. The end result is a final model with significant variables that best explains survival rate.
+Below paper was prepared for the needs of the final project for Advanced Econometrics at the University of Warsaw. By using ``Multinomial Logit Model`` on the data of Titanic survivors we wanted to verify whether the socio-economic status or paying higher fare impacted passenger's probability of survival. The data is originally available on the ``Kaggle`` competition website "Titanic: Machine Learning from Disaster" and contains  data for 1.309 passengers indicating whether they survive, what was their material status, what gender they were, what age they were etc. As our explanatory variables are individual specific (they do not change across alternatives) we decided to use ``Multinomial Logit Model``. In this paper, dependent variable ``Survival`` was explained with different independent variables that were selected using multinomial logit model and verified by statistical tests. The econometric model was built in ``R`` with the use of ``mlogit, survival, stargazer packages``. The end result is a final model with significant variables that best explains survival rate.
 
-__Keywords:__ Titanic, Survival Rate, Multinomial Logit Model.
+__Keywords:__ Titanic, Survival Rate, Multinomial Logit Model, Kaggle Titanic Dataset, Data pre-processing.
 
 # 1. Introduction
 
@@ -35,14 +36,39 @@ H1: Paying a higher fare/having a family member on board does not increase the c
 
 # 2. Literature review
 
+The Titanic disaster resulting in the sinking of the British passenger ship with the loss of 722 passengers and crew occurred in the North Atlantic on April 15, 1912. Although it has been many years since this maritime disaster took place, research on understanding what impacts individual’s survival or death has been attracting researchers' attention. It appears that this is somewhat of a common problem to work on especially that data set is publicly available. Many researchers were exploring this data with different predictive models. For example scientists from Kansas State University applied CART methodology as well as bagging and random forests that provide quite good prediction accuracy at the level of 77%^[Whitley M., “Using statistical learning to predict survival of passengers on the RMS Titanic” K-State Research Exchange, (1), 2015, pp. 32]. Using Logistic Regression also provides satisfactory results, accuracy i.e. almost of about 95%^[Kshirsagar V., Phalke N., “Titanic Survival Analysis using Logistic Regression” International Research Journal of Engineering and Technology (IRJET), (2), 2019, pp. 90] which was obtained by researchers from University of San Francisco. They concluded that the model predicted better with binary dependent variables which means the variable has a binary value as its output. Applying other methods, like random forest model predicts even better than previous models giving 93% of accuracy^[Donges N., “Predicting the Survival of Titanic Passengers” towardsdatascience.com, (3), 2018].
+
 
 # 3.Dataset and preprocessing
 
 ## 3.1.Dataset
 
-## 3.2.Preprocessing
+The Titanic passenger data consists of a ``training set``, a ``test set`` and a ``gender_submission set`` all are ``.csv`` files. The training set includes the response variable ``Survived`` and 11 other descriptive variables pertaining to 891 passengers. The test set does not include the response variable, but does contain the 11 other variables for 418 passengers. Additionally, gender submission includes only response variables for test set, that's why we started our data preprocessing by merging them. 
+
+
+From a sample of the RMS Titanic data, we can see the various features present for each passenger on the ship: <br />
+__"Survived"__: Outcome of survival (0 = No; 1 = Yes)  <br />
+__"Pclass"__: Socio-economic class (1 = Upper class; 2 = Middle class; 3 = Lower class)  <br />
+__"Name"__: Name of passenger  <br />
+__"Sex"__: Sex of the passenger  <br />
+__"Age"__: Age of the passenger (Some entries contain NaN)  <br />
+__"SibSp"__: Number of siblings and spouses of the passenger aboard  <br />
+__"Parch"__: Number of parents and children of the passenger aboard  <br />
+__"Ticket"__: Ticket number of the passenger  <br />
+__"Fare"__: Fare paid by the passenger  <br />
+__"Cabin"__: Cabin number of the passenger (Some entries contain NaN)  <br />
+__"Embarked"__: Port of embarkation of the passenger (C = Cherbourg; Q = Queenstown; S = Southampton)  <br />
+
 
 ```{r}
+library(vcd)
+mosaic(~Class+Sex+Age+Survived, data=Titanic, shade=TRUE, legend=TRUE)
+```
+
+## 3.2.Preprocessing
+
+
+```{r message=FALSE, warning=FALSE}
 library("sandwich")
 library("zoo")
 library("lmtest")
@@ -59,8 +85,7 @@ library("AER")
 library("stargazer")
 ```
 
-
-
+As previously mentioned we started our data preprocessing with merging respectively datasets to get complete data for further transformations.
 
 ```{r}
 dfx <- read.csv("train.csv")
@@ -75,6 +100,7 @@ df <- rbind(dfx, dfy)
 head(df)
 ```
 
+Since the data can have missing fields, incomplete fields, or fields containing hidden or useless information, a crucial step is to remove them in order not to complicate the further analysis. Variables ``Fare`` and ``Embarked`` will not be used, so we decided to remove them. Especially  embarked variable will not be used as is not individual specific. 
 
 ```{r}
 df <- subset(df, df$Embarked != "")
@@ -87,19 +113,18 @@ df$Sex <- as.factor(df$Sex)
 head(df)
 ```
 
-
 ```{r}
 summary(df)
 ```
 
-
+Our second hypothesis has to verify whether having a family on board has increased the chance of passenger to survive, therefore a new variable ``Family`` has been created as a sum of already existing variables ``SibSp`` - number of siblings and spouses of the passenger aboard and ``Parch``- number of parents and children of the passenger aboard.
 
 ```{r}
 df$Family <- df$SibSp + df$Parch
 head(df)
 ```
 
-
+# 4. Application of Econometric Models
 
 ```{r}
 fdf <- df
@@ -274,5 +299,8 @@ linktest = function(model) {
 mylogit <- glm(Survived~ Sex + Pclass, data=fdf, family=binomial(link="logit"))
 linktest(mylogit)
 ```
+
+# References
+
 
 
